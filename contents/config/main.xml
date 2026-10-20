@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+    <kcfgfile name=""/>
+
+    <group name="General">
+        <entry name="pollInterval" type="Int">
+            <label>Polling interval in seconds</label>
+            <default>900</default>
+        </entry>
+        <entry name="warningThreshold" type="Int">
+            <label>Warning threshold percentage</label>
+            <default>80</default>
+        </entry>
+        <entry name="criticalThreshold" type="Int">
+            <label>Critical threshold percentage</label>
+            <default>95</default>
+        </entry>
+        <entry name="panelStyle" type="String">
+            <label>Panel display style: dual_rings, gauge, bars, rings, glow, dots, capsule, text, or worst</label>
+            <default>dual_rings</default>
+        </entry>
+        <entry name="gaugeLabel" type="String">
+            <label>Label shown inside gauge: percent, time, glyph, or none</label>
+            <default>percent</default>
+        </entry>
+        <entry name="panelLabelMode" type="String">
+            <label>Side label next to panel widgets: none, plan, glyph, or name</label>
+            <default>plan</default>
+        </entry>
+        <entry name="colorTheme" type="String">
+            <label>Bar color preset: custom, warm, sky, emerald, amethyst, sunset, nord, or mono</label>
+            <default>warm</default>
+        </entry>
+        <entry name="popupStyle" type="String">
+            <label>Expanded popup layout: claudemeter, cards, compact, or grid</label>
+            <default>claudemeter</default>
+        </entry>
+        <entry name="showPace" type="Bool">
+            <label>Show pace segments, caret marker, and Ahead of pace on popup bars</label>
+            <default>true</default>
+        </entry>
+        <entry name="timeFormat" type="String">
+            <label>Updated-time style: ago (relative), 12h, or 24h</label>
+            <default>24h</default>
+        </entry>
+        <entry name="useGradient" type="Bool">
+            <label>Use smooth color gradient across usage levels and bars</label>
+            <default>true</default>
+        </entry>
+        <entry name="normalColor" type="String">
+            <label>Low usage bar color (0%)</label>
+            <default>#D77757</default>
+        </entry>
+        <entry name="midColor" type="String">
+            <label>Medium usage bar color</label>
+            <default>#DF9B65</default>
+        </entry>
+        <entry name="warningColor" type="String">
+            <label>Warning usage bar color</label>
+            <default>#E5C07B</default>
+        </entry>
+        <entry name="criticalColor" type="String">
+            <label>Critical usage bar color</label>
+            <default>#E06C75</default>
+        </entry>
+        <entry name="showClaude" type="Bool">
+            <label>Show the Claude provider</label>
+            <default>true</default>
+        </entry>
+        <entry name="showCodex" type="Bool">
+            <label>Show the Codex provider</label>
+            <default>true</default>
+        </entry>
+        <entry name="showOpencode" type="Bool">
+            <label>Show the OpenCode Go provider</label>
+            <default>true</default>
+        </entry>
+        <entry name="showZai" type="Bool">
+            <label>Show the Z.ai provider</label>
+            <default>true</default>
+        </entry>
+        <entry name="showAntigravity" type="Bool">
+            <label>Show the Google Antigravity provider</label>
+            <default>true</default>
+        </entry>
+        <entry name="showCommandcode" type="Bool">
+            <label>Show the Command Code provider</label>
+            <default>true</default>
+        </entry>
+    </group>
+</kcfg>

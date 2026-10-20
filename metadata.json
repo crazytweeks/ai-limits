@@ -1,0 +1,21 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Id": "com.crazytweeks.ai-limits",
+        "Name": "Usage Limits",
+        "Description": "Six AI provider usage limits in one Plasma 6 panel — pace bars, credit pools, and per-provider themes",
+        "Icon": "view-statistics",
+        "Authors": [
+            {
+                "Name": "Bhuvan"
+            }
+        ],
+        "Category": "Utilities",
+        "Version": "0.1.0",
+        "License": "MIT",
+        "Website": "https://github.com/crazytweeks/ai-limits"
+    },
+    "X-Plasma-API": "declarativeappletscript",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-MainScript": "ui/main.qml"
+}
