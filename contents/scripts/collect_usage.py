@@ -6,7 +6,8 @@ Coding Plan, Google Antigravity, Command Code. Each one's credentials are
 read from where its CLI already stores them; nothing is sent anywhere
 except the provider's own endpoint.
 
-Prints one JSON object on stdout and always exits 0:
+Doubles as the `ai-limits` terminal command (see --help). With --json it
+prints one JSON object on stdout and always exits 0:
 {
   "providers": [
     {"id": "claude", "name": "Claude", "state": "ok", "detail": "...",
@@ -14,8 +15,15 @@ Prints one JSON object on stdout and always exits 0:
                   "resetsAt": "2026-10-20T14:59:59+00:00"}], "cached": false},
     ...
   ],
-  "_fetched_at": 1760000000
+  "_fetched_at": 1760000000,
+  "pollInterval": 900
 }
+
+Shared cache: every widget instance and the CLI read one snapshot
+(~/.cache/ai-limits/snapshot.json). A run only hits the network when that
+snapshot is older than the shared poll interval
+(~/.config/ai-limits/config.json); a file lock makes concurrent callers wait
+for one fetch instead of each doing their own.
 
 states: ok | unauthenticated | token_expired | rate_limited | error
 Each provider is isolated: one failing never touches the others. A provider
@@ -23,10 +31,13 @@ that worked recently keeps serving its cached payload (marked "cached")
 until a fetch succeeds again.
 """
 
+import argparse
 import datetime
+import fcntl
 import glob
 import json
 import os
+import sys
 import time
 import urllib.error
 import urllib.parse
@@ -34,6 +45,14 @@ import urllib.request
 
 HOME = os.path.expanduser("~")
 CACHE_DIR = os.path.join(HOME, ".cache", "ai-limits")
+CONFIG_FILE = os.path.join(HOME, ".config", "ai-limits", "config.json")
+SNAPSHOT_FILE = os.path.join(CACHE_DIR, "snapshot.json")
+LOCK_FILE = os.path.join(CACHE_DIR, "fetch.lock")
+DEFAULT_POLL_INTERVAL = 900
+MIN_POLL_INTERVAL = 60
+MAX_POLL_INTERVAL = 3600
+LOCK_WAIT = 50  # seconds to wait for another caller's fetch to finish
+REFRESH_DEDUPE = 15  # a forced refresh reuses a snapshot this fresh
 USER_AGENT = "ai-limits/0.2"
 REQUEST_TIMEOUT = 10
 
@@ -862,11 +881,7 @@ def collect_provider(provider_id, collector):
     if result.get("state") == "ok":
         result["cached"] = False
         try:
-            os.makedirs(CACHE_DIR, exist_ok=True)
-            tmp = cache_path(provider_id) + ".tmp"
-            with open(tmp, "w") as f:
-                json.dump(result, f)
-            os.replace(tmp, cache_path(provider_id))
+            write_json_atomic(cache_path(provider_id), result)
         except OSError:
             pass
         return result
@@ -885,15 +900,209 @@ def collect_provider(provider_id, collector):
     return result
 
 
-def main():
+def write_json_atomic(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f)
+    os.replace(tmp, path)
+
+
+# --- Shared config and snapshot ---------------------------------------------
+
+def clamp_interval(value):
+    return max(MIN_POLL_INTERVAL, min(MAX_POLL_INTERVAL, int(value)))
+
+
+def read_poll_interval():
+    """(seconds, whether the shared config file sets it)."""
+    cfg = load_json(CONFIG_FILE)
+    if isinstance(cfg, dict) and isinstance(cfg.get("pollInterval"), (int, float)):
+        return clamp_interval(cfg["pollInterval"]), True
+    return DEFAULT_POLL_INTERVAL, False
+
+
+def write_poll_interval(seconds):
+    cfg = load_json(CONFIG_FILE)
+    if not isinstance(cfg, dict):
+        cfg = {}
+    cfg["pollInterval"] = clamp_interval(seconds)
+    write_json_atomic(CONFIG_FILE, cfg)
+    return cfg["pollInterval"]
+
+
+def fetch_all():
     providers = []
     for provider_id, name, collector in PROVIDERS:
         result = collect_provider(provider_id, collector)
         result["id"] = provider_id
         result["name"] = name
         providers.append(result)
+    return {"providers": providers, "_fetched_at": int(time.time())}
 
-    print(json.dumps({"providers": providers, "_fetched_at": int(time.time())}))
+
+def load_snapshot():
+    snap = load_json(SNAPSHOT_FILE)
+    if isinstance(snap, dict) and isinstance(snap.get("providers"), list):
+        return snap
+    return None
+
+
+def snapshot_age(snap):
+    return time.time() - float(snap.get("_fetched_at") or 0) if snap else float("inf")
+
+
+def get_snapshot(max_age):
+    """Snapshot no older than max_age seconds, fetching at most once across
+    all concurrent callers. max_age=None never fetches unless nothing exists."""
+    snap = load_snapshot()
+    if snap and (max_age is None or snapshot_age(snap) < max_age):
+        return snap
+
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        lock = open(LOCK_FILE, "a")
+    except OSError:
+        return fetch_all()
+    with lock:
+        deadline = time.time() + LOCK_WAIT
+        while True:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if time.time() > deadline:
+                    # Another fetch is stuck; serve what we have.
+                    return snap or fetch_all()
+                time.sleep(0.25)
+        # Whoever held the lock may have just written a fresh snapshot.
+        latest = load_snapshot()
+        if latest and (max_age is None or snapshot_age(latest) < max_age):
+            return latest
+        snap = fetch_all()
+        try:
+            write_json_atomic(SNAPSHOT_FILE, snap)
+        except OSError:
+            pass
+        return snap
+
+
+# --- Terminal output --------------------------------------------------------
+
+def human_duration(seconds):
+    minutes = int(seconds // 60)
+    hours = minutes // 60
+    if hours >= 24:
+        return f"{hours // 24}d {hours % 24}h"
+    if hours:
+        return f"{hours}h {minutes % 60}m"
+    return f"{minutes}m"
+
+
+def reset_text(iso):
+    if not iso:
+        return ""
+    try:
+        when = datetime.datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    except ValueError:
+        return ""
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=datetime.timezone.utc)
+    left = (when - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
+    return "window ended" if left <= 0 else "resets in " + human_duration(left)
+
+
+def render_text(snap, interval, color):
+    def paint(code, text):
+        return f"\033[{code}m{text}\033[0m" if color else text
+
+    def usage_code(percent):
+        return "31" if percent >= 95 else "33" if percent >= 80 else "32"
+
+    lines = []
+    for p in snap["providers"]:
+        title = p["name"]
+        detail = str(p.get("detail") or "").strip()
+        if p.get("state") == "ok" and detail and detail != p["name"]:
+            title += " · " + detail
+        tags = []
+        if p.get("cached"):
+            tags.append("cached")
+        lines.append(paint("1", title) + (" " + paint("2", "(" + ", ".join(tags) + ")") if tags else ""))
+
+        if p.get("state") != "ok":
+            lines.append("  " + paint("31", p.get("state", "error") + ": " + detail))
+            lines.append("")
+            continue
+        if p.get("notice"):
+            lines.append("  " + paint("33", p["notice"]))
+        windows = p.get("windows") or []
+        width = max([len(w.get("label", "")) for w in windows] + [4])
+        for w in windows:
+            percent = float(w.get("percent") or 0)
+            filled = int(round(min(100.0, percent) / 5))
+            bar = paint(usage_code(percent), "█" * filled) + paint("2", "░" * (20 - filled))
+            lines.append(f"  {w.get('label', ''):<{width}}  {bar} "
+                         + paint(usage_code(percent), f"{percent:5.1f}%")
+                         + "  " + paint("2", reset_text(w.get("resetsAt"))))
+        extra = p.get("extraUsage")
+        if isinstance(extra, dict):
+            amount = f"  {extra['amount']}" if extra.get("enabled") and extra.get("amount") else ""
+            lines.append(f"  {extra.get('label', 'Extra')}: {extra.get('status', '')}{amount}")
+        grant = p.get("resetGrant")
+        if isinstance(grant, dict):
+            lines.append(f"  Limit resets left: {grant.get('resetsLeft')}/{grant.get('resetsTotal')}")
+        lines.append("")
+
+    fetched = float(snap.get("_fetched_at") or 0)
+    stamp = time.strftime("%H:%M:%S", time.localtime(fetched))
+    age = human_duration(max(0, time.time() - fetched))
+    lines.append(paint("2", f"Updated {stamp} ({age} ago) · polls every "
+                       f"{human_duration(interval)} · ai-limits --refresh to force"))
+    return "\n".join(lines)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="ai-limits",
+        description="Show AI coding-assistant usage limits (shared cache with the Plasma widget).")
+    parser.add_argument("--json", action="store_true", help="print raw JSON")
+    parser.add_argument("--refresh", action="store_true",
+                        help="fetch now instead of using the shared cache")
+    parser.add_argument("--cached", action="store_true",
+                        help="never touch the network; print the last snapshot")
+    parser.add_argument("--all", action="store_true",
+                        help="include providers that are not signed in")
+    parser.add_argument("--set-interval", type=int, metavar="SECONDS",
+                        help=f"set the shared poll interval ({MIN_POLL_INTERVAL}-{MAX_POLL_INTERVAL}s)")
+    parser.add_argument("--no-color", action="store_true", help="disable ANSI colors")
+    args = parser.parse_args()
+
+    if args.set_interval is not None:
+        try:
+            write_poll_interval(args.set_interval)
+        except OSError as e:
+            print(f"ai-limits: cannot write {CONFIG_FILE}: {e}", file=sys.stderr)
+    interval, interval_shared = read_poll_interval()
+
+    if args.cached:
+        max_age = None
+    elif args.refresh:
+        max_age = REFRESH_DEDUPE
+    else:
+        max_age = interval
+    snap = get_snapshot(max_age)
+
+    if not args.all:
+        snap = dict(snap, providers=[p for p in snap["providers"]
+                                     if p.get("state") != "unauthenticated"])
+
+    if args.json:
+        snap = dict(snap, pollInterval=interval, pollIntervalShared=interval_shared)
+        print(json.dumps(snap, indent=None if not sys.stdout.isatty() else 2))
+    else:
+        color = sys.stdout.isatty() and not args.no_color and not os.environ.get("NO_COLOR")
+        print(render_text(snap, interval, color))
 
 
 if __name__ == "__main__":

@@ -22,7 +22,9 @@ PlasmoidItem {
     property date now: new Date()
 
     // --- Config ---
-    readonly property int pollInterval: plasmoid.configuration.pollInterval * 1000
+    // Seconds. Shared by every widget instance and the ai-limits CLI through
+    // ~/.config/ai-limits/config.json; this per-widget entry mirrors it.
+    readonly property int pollInterval: plasmoid.configuration.pollInterval
     readonly property int warningThreshold: plasmoid.configuration.warningThreshold
     readonly property int criticalThreshold: plasmoid.configuration.criticalThreshold
     readonly property string panelStyle: plasmoid.configuration.panelStyle || "dual_rings"
@@ -50,8 +52,18 @@ PlasmoidItem {
 
     // --- Fetch state ---
     property bool fetchInFlight: false
-    property real lastFetchTime: 0
-    readonly property int cooldownMs: 60000
+    // Non-poll request that arrived mid-fetch; "manual" wins over "config".
+    property string queuedSource: ""
+    // Last interval reported by the shared config, and one this widget's
+    // settings page changed that still has to be written there.
+    property int sharedInterval: 0
+    property int pendingInterval: 0
+
+    onPollIntervalChanged: {
+        if (root.pollInterval === root.sharedInterval) return
+        root.pendingInterval = root.pollInterval
+        root.requestFetch("config")
+    }
 
     function providerEnabled(p) {
         var flags = root.enabledProviders
@@ -311,9 +323,15 @@ PlasmoidItem {
         return "'" + String(text).replace(/'/g, "'\\''") + "'"
     }
 
-    function scriptCommand() {
+    // The collector serves the shared snapshot and only hits the network once
+    // it is older than the shared poll interval, so every instance shows the
+    // same data no matter which one triggered the fetch.
+    function scriptCommand(source) {
         var scriptPath = decodeURIComponent(Qt.resolvedUrl("../scripts/collect_usage.py").toString().replace(/^file:\/\/(?=\/)/, ""))
-        return "python3 " + root.shellQuote(scriptPath)
+        var cmd = "python3 " + root.shellQuote(scriptPath) + " --json --all"
+        if (source === "manual") cmd += " --refresh"
+        if (root.pendingInterval > 0) cmd += " --set-interval " + root.pendingInterval
+        return cmd
     }
 
     Plasma5Support.DataSource {
@@ -321,30 +339,36 @@ PlasmoidItem {
         engine: "executable"
         connectedSources: []
         onNewData: (sourceName, data) => {
-            root.parseUsageData(data["stdout"])
             disconnectSource(sourceName)
+            root.parseUsageData(data["stdout"], sourceName)
         }
         function exec(cmd) {
             if (cmd) connectSource(cmd)
         }
     }
 
+    property string inFlightCommand: ""
+
     function requestFetch(source) {
-        if (root.fetchInFlight) return
-        if (source !== "startup" && source !== "manual"
-                && Date.now() - root.lastFetchTime < root.cooldownMs) return
+        if (root.fetchInFlight) {
+            if (source !== "poll" && root.queuedSource !== "manual") root.queuedSource = source
+            return
+        }
         root.fetchInFlight = true
-        root.loading = true
-        root.lastFetchTime = Date.now()
+        if (source === "manual" || source === "startup") root.loading = true
+        root.inFlightCommand = root.scriptCommand(source)
         fetchTimeoutTimer.restart()
-        executable.exec(root.scriptCommand())
+        executable.exec(root.inFlightCommand)
     }
 
-    function parseUsageData(stdout) {
+    function parseUsageData(stdout, command) {
         fetchTimeoutTimer.stop()
         root.fetchInFlight = false
         root.loading = false
-        root.lastUpdated = new Date()
+        if (root.queuedSource) {
+            Qt.callLater(root.requestFetch, root.queuedSource)
+            root.queuedSource = ""
+        }
 
         var data
         try {
@@ -364,12 +388,35 @@ PlasmoidItem {
         root.hasError = false
         root.errorMessage = ""
         root.providers = data.providers
+        root.lastUpdated = data._fetched_at ? new Date(data._fetched_at * 1000) : new Date()
+        root.syncInterval(data, String(command || ""))
+    }
+
+    function syncInterval(data, command) {
+        var shared = data.pollInterval || 0
+        if (!shared) return
+        if (root.pendingInterval > 0) {
+            // Ignore answers from runs that started before our write landed.
+            if (command.indexOf("--set-interval " + root.pendingInterval) < 0) return
+            root.pendingInterval = 0
+        } else if (!data.pollIntervalShared && root.pollInterval !== shared) {
+            // First run after upgrading: seed the shared file from this widget.
+            root.pendingInterval = root.pollInterval
+            Qt.callLater(root.requestFetch, "config")
+            return
+        }
+        root.sharedInterval = shared
+        if (plasmoid.configuration.pollInterval !== shared) {
+            plasmoid.configuration.pollInterval = shared
+        }
     }
 
     // --- Timers ---
+    // Cheap: most ticks just re-read the shared snapshot. The collector
+    // decides when the shared poll interval has elapsed and a fetch is due.
     Timer {
         id: pollTimer
-        interval: root.pollInterval
+        interval: 30000
         running: true
         repeat: true
         onTriggered: root.requestFetch("poll")
@@ -386,9 +433,10 @@ PlasmoidItem {
 
     Timer {
         id: fetchTimeoutTimer
-        interval: 45000
+        // Covers waiting on another instance's fetch plus our own.
+        interval: 120000
         onTriggered: {
-            executable.disconnectSource(root.scriptCommand())
+            executable.disconnectSource(root.inFlightCommand)
             root.fetchInFlight = false
             root.loading = false
             root.hasError = true

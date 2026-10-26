@@ -89,10 +89,27 @@ To test in a standalone window:
 plasmawindowed com.crazytweeks.ai-limits
 ```
 
+`install.sh` also links the `ai-limits` terminal command into `~/.local/bin` and, if `~/.claude` exists, a Claude Code skill into `~/.claude/skills/ai-limits`.
+
+### Terminal command
+
+```sh
+ai-limits              # bars, percentages and reset countdowns
+ai-limits --json       # machine-readable output
+ai-limits --refresh    # fetch now instead of using the cache
+ai-limits --all        # include providers that are not signed in
+ai-limits --set-interval 600   # shared poll interval for CLI + all widgets
+```
+
+### Shared cache
+
+Every widget instance and the CLI read one snapshot (`~/.cache/ai-limits/snapshot.json`). Providers are only queried once that snapshot is older than the shared poll interval (`~/.config/ai-limits/config.json`), and a file lock makes concurrent callers wait for a single fetch. A panel widget and a desktop widget therefore always show the same data and update time. Changing **Poll interval** in any widget's settings applies to all of them.
+
 ### Uninstall
 
 ```sh
 kpackagetool6 -t Plasma/Applet -r com.crazytweeks.ai-limits
+rm -f ~/.local/bin/ai-limits ~/.claude/skills/ai-limits
 rm -rf ~/.cache/ai-limits
 ```
 

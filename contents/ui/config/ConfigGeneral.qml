@@ -39,6 +39,14 @@ KCM.SimpleKCM {
             stepSize: 60
         }
 
+        QQC2.Label {
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            wrapMode: Text.WordWrap
+            font: Kirigami.Theme.smallFont
+            color: Kirigami.Theme.disabledTextColor
+            text: "Shared by every Usage Limits widget and the ai-limits command. All of them read one cached snapshot, so they always show the same data."
+        }
+
         Kirigami.Separator {
             Kirigami.FormData.isSection: true
             Kirigami.FormData.label: "Panel appearance"
