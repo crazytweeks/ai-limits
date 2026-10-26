@@ -221,7 +221,10 @@ Item {
         text: {
             var t = root.lastUpdated
             var mode = root.timeFormat
-            if (mode === "ago" || tick === undefined) {
+            // Read tick first: Date.now() is not reactive, so this binding
+            // only re-runs (and the "ago" text only advances) on each tick.
+            var beat = tick
+            if (mode === "ago") {
                 var diff = Math.max(0, (Date.now() - t.getTime()) / 1000)
                 if (diff < 60) return "Refreshed " + Math.floor(diff) + "s ago"
                 if (diff < 3600) return "Refreshed " + Math.floor(diff / 60) + "m ago"
