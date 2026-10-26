@@ -36,7 +36,7 @@ Every provider caches its last-known state locally, so a rate-limit or outage sh
 
 Pick from nine compact representations in **Configure Usage Limits… → Panel style**:
 
-- **Dual Rings** — concentric 5-hour + weekly rings per provider, with plan badges (`PRO`, `MAX`, `PLUS`, `GO`, `GLM`, `AGY`, `GOAT`)
+- **Dual Rings** — concentric 5-hour + weekly rings per provider, with plan badges (`PRO`, `MAX`, `PLUS`, `GO`, `Z`, `AGY`, `GOAT`; the OpenCode Go, Z.ai and Antigravity badge text is configurable under **Panel badges**)
 - **Thermometer Bars** — rounded vertical pills per window
 - **Single Gauge** — one ring showing time-to-reset, percentage, or provider glyph
 - **Glow Chips** — provider badges whose brightness tracks the tightest window
@@ -129,6 +129,7 @@ Right-click the widget and select **Configure Usage Limits…**:
 | Smooth gradient | Interpolate across all 4 color stops | `On` |
 | Low / Medium / Warning / Critical colors | 4 independent color pickers | `#D77757` / `#DF9B65` / `#E5C07B` / `#E06C75` |
 | Providers | Individual toggles for all 6 | All `On` |
+| Panel badges | Short badge text for OpenCode Go (`GO`), Z.ai (`Z`), Antigravity (`AGY`) | As shown |
 | Poll interval | Seconds between polls (60–3600) | `900` (15m) |
 
 ## Re-rendering screenshots

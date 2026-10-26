@@ -38,6 +38,9 @@ PlasmoidItem {
     readonly property string midColor: plasmoid.configuration.midColor || "#DF9B65"
     readonly property string warningColor: plasmoid.configuration.warningColor || "#E5C07B"
     readonly property string criticalColor: plasmoid.configuration.criticalColor || "#E06C75"
+    readonly property string opencodeBadge: plasmoid.configuration.opencodeBadge || "GO"
+    readonly property string zaiBadge: plasmoid.configuration.zaiBadge || "Z"
+    readonly property string antigravityBadge: plasmoid.configuration.antigravityBadge || "AGY"
 
     readonly property var enabledProviders: {
         var flags = {}
@@ -135,9 +138,9 @@ PlasmoidItem {
             var stripped = d.replace(/^ChatGPT\s+/i, "").trim().toUpperCase()
             return stripped || "PLUS"
         }
-        if (p.id === "opencode") return "GO"
-        if (p.id === "zai") return "GLM"
-        if (p.id === "antigravity") return "AGY"
+        if (p.id === "opencode") return root.opencodeBadge
+        if (p.id === "zai") return root.zaiBadge
+        if (p.id === "antigravity") return root.antigravityBadge
         if (p.id === "commandcode") {
             return (d && d !== "Command Code") ? d.toUpperCase() : "CMD"
         }

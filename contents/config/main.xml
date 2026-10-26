@@ -90,5 +90,17 @@
             <label>Show the Command Code provider</label>
             <default>true</default>
         </entry>
+        <entry name="opencodeBadge" type="String">
+            <label>Panel badge text for OpenCode Go</label>
+            <default>GO</default>
+        </entry>
+        <entry name="zaiBadge" type="String">
+            <label>Panel badge text for Z.ai</label>
+            <default>Z</default>
+        </entry>
+        <entry name="antigravityBadge" type="String">
+            <label>Panel badge text for Google Antigravity</label>
+            <default>AGY</default>
+        </entry>
     </group>
 </kcfg>

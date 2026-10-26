@@ -24,6 +24,9 @@ KCM.SimpleKCM {
     property alias cfg_showZai: showZaiBox.checked
     property alias cfg_showAntigravity: showAntigravityBox.checked
     property alias cfg_showCommandcode: showCommandcodeBox.checked
+    property alias cfg_opencodeBadge: opencodeBadgeField.text
+    property alias cfg_zaiBadge: zaiBadgeField.text
+    property alias cfg_antigravityBadge: antigravityBadgeField.text
     property alias cfg_useGradient: useGradientBox.checked
     property string cfg_normalColor
     property string cfg_midColor
@@ -278,6 +281,39 @@ KCM.SimpleKCM {
             id: showCommandcodeBox
             Kirigami.FormData.label: "Command Code:"
             text: "Show Command Code credits and limits"
+        }
+
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: true
+            Kirigami.FormData.label: "Panel badges"
+        }
+
+        QQC2.TextField {
+            id: opencodeBadgeField
+            Kirigami.FormData.label: "OpenCode Go:"
+            placeholderText: "GO"
+            maximumLength: 6
+        }
+
+        QQC2.TextField {
+            id: zaiBadgeField
+            Kirigami.FormData.label: "Z.ai:"
+            placeholderText: "Z"
+            maximumLength: 6
+        }
+
+        QQC2.TextField {
+            id: antigravityBadgeField
+            Kirigami.FormData.label: "Antigravity:"
+            placeholderText: "AGY"
+            maximumLength: 6
+        }
+
+        QQC2.Label {
+            Kirigami.FormData.label: ""
+            text: "Short text shown beside the panel gauge for each provider. Leave empty to use the default."
+            opacity: 0.5
+            wrapMode: Text.WordWrap
         }
 
         Kirigami.Separator {
