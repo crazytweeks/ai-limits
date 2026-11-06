@@ -94,6 +94,10 @@
             <label>Show the Deploy credit balance</label>
             <default>true</default>
         </entry>
+        <entry name="showTypesafe" type="Bool">
+            <label>Show the TypeSafe credit balance</label>
+            <default>true</default>
+        </entry>
         <entry name="opencodeBadge" type="String">
             <label>Panel badge text for OpenCode Go</label>
             <default>GO</default>

@@ -1,6 +1,6 @@
 ---
 name: ai-limits
-description: Check the user's current AI coding-assistant usage limits (Claude Code, Codex, OpenCode Go, Z.ai, Antigravity, Command Code) via the local `ai-limits` command. Use when asked about remaining quota, rate limits, reset times, or which provider has headroom before starting a large task or delegating work.
+description: Check the user's current AI coding-assistant usage limits (Claude Code, Codex, OpenCode Go, Z.ai, Antigravity, Command Code, Deploy, TypeSafe) via the local `ai-limits` command. Use when asked about remaining quota, rate limits, reset times, or which provider has headroom before starting a large task or delegating work.
 ---
 
 # ai-limits
@@ -68,6 +68,12 @@ is normally instant and does not hit provider APIs.
   alone. Both need a logged-in portal session cookie, not an API key, saved in `~/.config/ai-limits/deploy-cookie`
   or set in `$DEPLOY_PORTAL_COOKIE`. The route is unofficial, so without `state: ok` the balance is unknown, not
   zero; with `cached: true` it is the last known balance.
+- **TypeSafe** (Jev decision API, not a coding assistant): prepaid credit, charged per token. Balance:
+  `ai-limits --json` lists provider `typesafe` with `balance` in US dollars and empty `windows`, so it has no usage
+  percentages to compare and cannot win the lowest-usage comparison. It needs a console session cookie, not an API
+  key, saved in `~/.config/ai-limits/typesafe-cookie` or set in `$TYPESAFE_CONSOLE_COOKIE`. `token_expired` means
+  that cookie needs saving again. The route is unofficial, so without `state: ok` the balance is unknown, not zero;
+  with `cached: true` it is the last known balance. Its rate limits are per second and are not reported here.
 - **`opencode/*-free` models**: share a free-tier cap ("Free usage limit reached"). Treat them as
   unreliable for long tasks.
 - T3 `delegate_task` uses its own cached OpenCode model list. If an `opencode-go/*` or `deploy/*` model is

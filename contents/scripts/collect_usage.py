@@ -2,9 +2,9 @@
 """Collect AI subscription usage limits from every provider signed in locally.
 
 Providers: Claude Code, OpenAI Codex (ChatGPT plan), OpenCode Go, Z.ai GLM
-Coding Plan, Google Antigravity, Command Code, Deploy. Each one's credentials are
-read from where its CLI already stores them; nothing is sent anywhere
-except the provider's own endpoint.
+Coding Plan, Google Antigravity, Command Code, Deploy, TypeSafe. Each one's
+credentials are read from where its CLI already stores them; nothing is sent
+anywhere except the provider's own endpoint.
 
 Doubles as the `ai-limits` terminal command (see --help). With --json it
 prints one JSON object on stdout and always exits 0:
@@ -68,6 +68,7 @@ ANTIGRAVITY_API_BASE = "https://daily-cloudcode-pa.googleapis.com/v1internal"
 ANTIGRAVITY_HUB_UA = "antigravity/hub/2.9.1/linux/amd64"
 COMMANDCODE_BASE = "https://api.commandcode.ai/alpha"
 DEPLOY_PORTAL_API = "https://ajax-portal.deploy.com/"
+TYPESAFE_BALANCE_URL = "https://console.typesafe.ai/api/billing/balance"
 
 
 def http_json(url, headers, timeout=REQUEST_TIMEOUT):
@@ -949,6 +950,64 @@ def collect_deploy():
     return {"state": "ok", "detail": f"${balance:.2f} left", "windows": [], "balance": balance}
 
 
+# --- TypeSafe ---------------------------------------------------------------
+#
+# UNOFFICIAL ROUTE. TypeSafe's documented API (api.typesafe.ai) has no usage or
+# balance endpoint, so this calls the route its console uses, with a console
+# session cookie. It can break without notice. The console refuses requests
+# without Sec-Fetch-Site: same-origin, so that header is set to look like the
+# console's own page, and TypeSafe's terms restrict automated access to the
+# site. It reports prepaid credit only: no cap, so there are no usage windows.
+
+TYPESAFE_COOKIE_NAMES = ("session", "session_id", "organization_id")
+
+
+def typesafe_cookie():
+    """The session cookies only, from a saved Cookie header. None if incomplete."""
+    raw = os.environ.get("TYPESAFE_CONSOLE_COOKIE", "").strip()
+    if not raw:
+        try:
+            with open(os.path.join(HOME, ".config/ai-limits/typesafe-cookie")) as f:
+                raw = f.read().strip()
+        except OSError:
+            return None
+    found = dict(part.strip().split("=", 1) for part in raw.split(";") if "=" in part)
+    if not found.get("session") or not found.get("session_id"):
+        return None
+    return "; ".join(f"{name}={found[name]}" for name in TYPESAFE_COOKIE_NAMES
+                     if found.get(name))
+
+
+def collect_typesafe():
+    cookie = typesafe_cookie()
+    if not cookie:
+        return {"state": "unauthenticated",
+                "detail": "No TypeSafe console cookie. Save it in ~/.config/ai-limits/typesafe-cookie"}
+
+    status, data, _ = http_json(TYPESAFE_BALANCE_URL, {
+        "Cookie": cookie,
+        "Accept": "application/json",
+        "Referer": "https://console.typesafe.ai/billing",
+        "Sec-Fetch-Site": "same-origin",
+        "User-Agent": USER_AGENT,
+    })
+    if status == 0:
+        return {"state": "error", "detail": "Could not reach the TypeSafe console"}
+    if status == 429:
+        return {"state": "rate_limited", "detail": "TypeSafe console is rate-limiting"}
+    if status in (401, 403):
+        return {"state": "token_expired",
+                "detail": "TypeSafe console refused the session. Save a new cookie."}
+    if status != 200 or not isinstance(data, dict):
+        return {"state": "error", "detail": f"TypeSafe console returned HTTP {status}"}
+
+    cents = data.get("balanceCents")
+    if not is_number(cents):
+        return {"state": "error", "detail": "TypeSafe console response has no balance"}
+    balance = cents / 100.0
+    return {"state": "ok", "detail": f"${balance:.2f} left", "windows": [], "balance": balance}
+
+
 # --- Assembly ---------------------------------------------------------------
 
 PROVIDERS = (
@@ -959,6 +1018,7 @@ PROVIDERS = (
     ("antigravity", "Antigravity", collect_antigravity),
     ("commandcode", "Command Code", collect_commandcode),
     ("deploy", "Deploy", collect_deploy),
+    ("typesafe", "TypeSafe", collect_typesafe),
 )
 
 
