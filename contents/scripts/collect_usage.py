@@ -108,22 +108,28 @@ def window(id_, label, percent, resets_iso):
             "resetsAt": resets_iso or ""}
 
 
+def is_number(value):
+    """True for a usable numeric usage value. Unknown usage must never read as 0."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 # --- Claude -----------------------------------------------------------------
 
 def claude_windows(data):
     windows = []
-    five = data.get("five_hour") or {}
-    seven = data.get("seven_day") or {}
-    windows.append(window("five_hour", "5h", five.get("utilization") or 0,
-                          five.get("resets_at")))
-    windows.append(window("seven_day", "7d", seven.get("utilization") or 0,
-                          seven.get("resets_at")))
+    for id_, key, label in (("five_hour", "five_hour", "5h"),
+                            ("seven_day", "seven_day", "7d")):
+        raw = data.get(key)
+        if isinstance(raw, dict) and is_number(raw.get("utilization")):
+            windows.append(window(id_, label, raw["utilization"], raw.get("resets_at")))
     for limit in data.get("limits") or []:
         if not isinstance(limit, dict):
             continue
         if limit.get("group") != "weekly" or limit.get("kind") == "weekly_all":
             continue
-        percent = limit.get("percent") or 0
+        percent = limit.get("percent")
+        if not is_number(percent):
+            continue
         resets = limit.get("resets_at") or ""
         if percent <= 0 and not resets:
             continue
@@ -238,7 +244,11 @@ def collect_claude():
                 }
                 break
 
-    result = {"state": "ok", "detail": sub_type, "windows": claude_windows(data)}
+    windows = claude_windows(data)
+    if not windows:
+        return {"state": "error", "detail": "Claude returned no readable usage windows",
+                "plan": sub_type}
+    result = {"state": "ok", "detail": sub_type, "windows": windows}
     if extra_info:
         result["extraUsage"] = extra_info
     if reset_grant:
@@ -613,11 +623,11 @@ def antigravity_windows(summary, per_model, now_epoch):
             if family is None:
                 continue
             reset = antigravity_reset_iso(bucket.get("resetTime"))
-            key = (family, reset)
-            if key not in clusters:
-                clusters[key] = 1.0
             remaining = bucket.get("remainingFraction")
-            if isinstance(remaining, (int, float)) and remaining < clusters[key]:
+            if not is_number(remaining):
+                continue
+            key = (family, reset)
+            if key not in clusters or remaining < clusters[key]:
                 clusters[key] = remaining
         for (family, reset), remaining in clusters.items():
             if reset is None:
@@ -752,9 +762,9 @@ def commandcode_percent(raw):
     if cap <= 0:
         return None, ""
     try:
-        used = float(raw.get("used") or 0)
-    except (TypeError, ValueError):
-        used = 0.0
+        used = float(raw["used"])
+    except (KeyError, TypeError, ValueError):
+        return None, ""
     return min(100.0, max(0.0, used / cap * 100.0)), commandcode_reset_iso(
         raw.get("resetAt"))
 
