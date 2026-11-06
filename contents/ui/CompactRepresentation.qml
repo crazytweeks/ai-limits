@@ -135,7 +135,7 @@ MouseArea {
                 spacing: Kirigami.Units.smallSpacing * 2
 
                 Repeater {
-                    model: root.visibleProviders
+                    model: root.panelProviders
 
                     Row {
                         id: providerGroup
@@ -233,7 +233,7 @@ MouseArea {
                 spacing: Kirigami.Units.smallSpacing * 1.8
 
                 Repeater {
-                    model: root.visibleProviders
+                    model: root.panelProviders
 
                     Row {
                         id: dualGroup
@@ -373,7 +373,7 @@ MouseArea {
                 spacing: Kirigami.Units.smallSpacing * 1.8
 
                 Repeater {
-                    model: root.visibleProviders
+                    model: root.panelProviders
 
                     Row {
                         id: singleGroup
@@ -475,7 +475,7 @@ MouseArea {
                 spacing: Kirigami.Units.smallSpacing * 1.2
 
                 Repeater {
-                    model: root.visibleProviders
+                    model: root.panelProviders
 
                     Item {
                         id: ringCell
@@ -549,7 +549,7 @@ MouseArea {
                 spacing: Kirigami.Units.smallSpacing * 0.8
 
                 Repeater {
-                    model: root.visibleProviders
+                    model: root.panelProviders
 
                     Rectangle {
                         id: glowCell
@@ -595,7 +595,7 @@ MouseArea {
                 spacing: Kirigami.Units.smallSpacing * 1.2
 
                 Repeater {
-                    model: root.visibleProviders
+                    model: root.panelProviders
 
                     Rectangle {
                         required property var modelData
@@ -642,7 +642,7 @@ MouseArea {
                     spacing: 0
 
                     Repeater {
-                        model: root.visibleProviders
+                        model: root.panelProviders
 
                         Item {
                             id: capsuleCell
@@ -651,7 +651,7 @@ MouseArea {
                             readonly property bool isOk: provider.state === "ok"
                             readonly property real util: isOk ? compact.worstOf(provider) : 0
 
-                            width: capsuleBg.visible ? (capsuleBg.width / Math.max(1, root.visibleProviders.length)) : 0
+                            width: capsuleBg.visible ? (capsuleBg.width / Math.max(1, root.panelProviders.length)) : 0
                             height: parent.height
 
                             Rectangle {

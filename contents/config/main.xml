@@ -90,6 +90,10 @@
             <label>Show the Command Code provider</label>
             <default>true</default>
         </entry>
+        <entry name="showDeploy" type="Bool">
+            <label>Show the Deploy credit balance</label>
+            <default>true</default>
+        </entry>
         <entry name="opencodeBadge" type="String">
             <label>Panel badge text for OpenCode Go</label>
             <default>GO</default>

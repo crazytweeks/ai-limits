@@ -51,7 +51,7 @@ is normally instant and does not hit provider APIs.
   agents stop with "OpenCode Go 5 hour usage limit reached". `ai-limits` may still list it as
   `unauthenticated`; check the Plasma "Usage Limits" widget instead.
 - **Deploy** (via `opencode`): pay-per-use models that share one prepaid credit balance, which can be recharged.
-  Not shown in `ai-limits`. Use them for bulk or long-running worker tasks when subscription windows are
+  Use them for bulk or long-running worker tasks when subscription windows are
   tight, and avoid wasting them on trivial jobs. New models appear in `opencode models` only after OpenCode
   restarts (`opencode service` / reopen OpenCode).
 
@@ -63,9 +63,11 @@ is normally instant and does not hit provider APIs.
   Direct API: `POST https://api.deploy.com/api/v1/chat/completions` with `Authorization: Bearer <key>`; the
   model ID there drops the `deploy/` prefix. HTTP `405` from this endpoint can mean the credit has run out.
 
-  Balance: run `scripts/deploy_balance.py` from this skill's directory. It prints JSON with `balance` in US
-  dollars and needs a logged-in portal session cookie, not an API key. It uses an unofficial portal route, so
-  `state` other than `ok` means the balance is unknown, not zero.
+  Balance: `ai-limits --json` lists provider `deploy` with `balance` in US dollars and empty `windows`, so it has
+  no usage percentages to compare. `scripts/deploy_balance.py` in this skill's directory prints the same balance
+  alone. Both need a logged-in portal session cookie, not an API key, saved in `~/.config/ai-limits/deploy-cookie`
+  or set in `$DEPLOY_PORTAL_COOKIE`. The route is unofficial, so without `state: ok` the balance is unknown, not
+  zero; with `cached: true` it is the last known balance.
 - **`opencode/*-free` models**: share a free-tier cap ("Free usage limit reached"). Treat them as
   unreliable for long tasks.
 - T3 `delegate_task` uses its own cached OpenCode model list. If an `opencode-go/*` or `deploy/*` model is

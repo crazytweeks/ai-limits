@@ -24,6 +24,7 @@ KCM.SimpleKCM {
     property alias cfg_showZai: showZaiBox.checked
     property alias cfg_showAntigravity: showAntigravityBox.checked
     property alias cfg_showCommandcode: showCommandcodeBox.checked
+    property alias cfg_showDeploy: showDeployBox.checked
     property alias cfg_opencodeBadge: opencodeBadgeField.text
     property alias cfg_zaiBadge: zaiBadgeField.text
     property alias cfg_antigravityBadge: antigravityBadgeField.text
@@ -281,6 +282,12 @@ KCM.SimpleKCM {
             id: showCommandcodeBox
             Kirigami.FormData.label: "Command Code:"
             text: "Show Command Code credits and limits"
+        }
+
+        QQC2.CheckBox {
+            id: showDeployBox
+            Kirigami.FormData.label: "Deploy:"
+            text: "Show Deploy credit balance in the popup"
         }
 
         Kirigami.Separator {

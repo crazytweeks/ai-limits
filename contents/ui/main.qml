@@ -50,6 +50,7 @@ PlasmoidItem {
         flags["zai"] = plasmoid.configuration.showZai
         flags["antigravity"] = plasmoid.configuration.showAntigravity
         flags["commandcode"] = plasmoid.configuration.showCommandcode
+        flags["deploy"] = plasmoid.configuration.showDeploy
         return flags
     }
 
@@ -87,6 +88,16 @@ PlasmoidItem {
         return good.concat(bad)
     }
 
+    // Panel gauges draw percentages. Deploy only has a balance, so a gauge would
+    // read as 0% used; it appears in the popup instead.
+    readonly property var panelProviders: {
+        var list = []
+        for (var i = 0; i < root.visibleProviders.length; i++) {
+            if (root.visibleProviders[i].id !== "deploy") list.push(root.visibleProviders[i])
+        }
+        return list
+    }
+
     // Flat row list: every usable window of every enabled provider.
     readonly property var limitRows: {
         var rows = []
@@ -120,7 +131,7 @@ PlasmoidItem {
     // Distinct glyphs: initials alone would collide (Claude / Codex both "C").
     function providerGlyph(p) {
         var map = { "claude": "C", "codex": "X", "opencode": "G", "zai": "Z",
-                    "antigravity": "A", "commandcode": "\u25C6" }
+                    "antigravity": "A", "commandcode": "\u25C6", "deploy": "D" }
         var g = p && p.id ? map[p.id] : undefined
         return g ? g : (p && p.name ? p.name.charAt(0).toUpperCase() : "?")
     }
@@ -177,6 +188,7 @@ PlasmoidItem {
             return "Z.ai Usage" + (d ? " - " + d : "")
         }
         if (p.id === "antigravity") return "Antigravity Usage"
+        if (p.id === "deploy") return "Deploy Balance" + (d ? " - " + d : "")
         if (p.id === "commandcode") {
             var plan = (d && d !== "Command Code") ? " - " + d.toUpperCase() : ""
             return "Command Code Usage" + plan

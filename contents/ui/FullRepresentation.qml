@@ -541,7 +541,7 @@ Item {
 
                             QQC2.Label {
                                 Layout.fillWidth: true
-                                visible: card.isOk && card.windows.length === 0
+                                visible: card.isOk && card.windows.length === 0 && card.provider.balance === undefined
                                 text: "No usage windows reported"
                                 opacity: 0.5
                                 wrapMode: Text.WordWrap
@@ -636,7 +636,7 @@ Item {
                     }
 
                     QQC2.Label {
-                        visible: group.isOk && group.windows.length === 0
+                        visible: group.isOk && group.windows.length === 0 && group.provider.balance === undefined
                         text: "No usage windows reported"
                         opacity: 0.5
                         font.pointSize: Qt.application.font.pointSize * 0.85
@@ -744,7 +744,7 @@ Item {
 
                                 QQC2.Label {
                                     Layout.fillWidth: true
-                                    visible: tile.isOk && tile.windows.length === 0
+                                    visible: tile.isOk && tile.windows.length === 0 && tile.provider.balance === undefined
                                     text: "No windows"
                                     opacity: 0.5
                                     font.pointSize: Qt.application.font.pointSize * 0.78

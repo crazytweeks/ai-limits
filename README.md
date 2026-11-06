@@ -2,10 +2,10 @@
 
 [![Plasma 6](https://img.shields.io/badge/Plasma-6-1d99f3?logo=kde)](https://kde.org/plasma-desktop/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-d77757.svg)](LICENSE)
-[![Providers](https://img.shields.io/badge/AI%20Providers-6-27ae60)](#supported-providers)
+[![Providers](https://img.shields.io/badge/AI%20Providers-7-27ae60)](#supported-providers)
 [![KDE Store](https://img.shields.io/badge/dynamic/xml?url=https%3A%2F%2Fapi.kde-look.org%2Focs%2Fv1%2Fcontent%2Fdata%2F2348058&query=%2F%2Fversion&prefix=Get%20v&label=KDE%20Store&logo=kde&color=1d99f3)](https://store.kde.org/p/2348058/)
 
-Six AI coding assistants. One Plasma 6 panel. Live rate limits, credit pools, and pace tracking without a daemon.
+Seven AI providers. One Plasma 6 widget. Live rate limits, credit pools, and pace tracking without a daemon.
 
 ![Usage Limits in a Plasma 6 panel with the popup open](docs/screenshots/hero-dark.png)
 
@@ -13,7 +13,7 @@ Six AI coding assistants. One Plasma 6 panel. Live rate limits, credit pools, an
 
 | | |
 |---|---|
-| **Providers** | Claude Code, Codex, OpenCode Go, Z.ai, Antigravity, Command Code |
+| **Providers** | Claude Code, Codex, OpenCode Go, Z.ai, Antigravity, Command Code, Deploy |
 | **What it reads** | Each CLI's own sign-in file — no extra daemon, no third-party service |
 | **Panel** | Dual rings, thermometer bars, single gauge, glow chips, glyph rings, capsule strip, severity dots, text, worst pill |
 | **Popup** | Claudemeter pace bars, Cards, Compact, Grid Tiles layouts |
@@ -29,6 +29,7 @@ Six AI coding assistants. One Plasma 6 panel. Live rate limits, credit pools, an
 | **Z.ai** | `~/.config/ai-limits/zai-api-key` or env | 5-hour, monthly, MCP quota |
 | **Antigravity** | OAuth JSON or T3 `acp_token.json` | Claude/GPT 5h, Gemini 5h |
 | **Command Code** | `~/.commandcode/auth.json` | 5-hour, weekly, monthly credits |
+| **Deploy** | Portal session cookie in `~/.config/ai-limits/deploy-cookie` | Credit balance, popup and CLI only (unofficial route) |
 
 Every provider caches its last-known state locally, so a rate-limit or outage shows `cached` data instead of a blank bar.
 

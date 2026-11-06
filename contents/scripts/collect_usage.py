@@ -2,7 +2,7 @@
 """Collect AI subscription usage limits from every provider signed in locally.
 
 Providers: Claude Code, OpenAI Codex (ChatGPT plan), OpenCode Go, Z.ai GLM
-Coding Plan, Google Antigravity, Command Code. Each one's credentials are
+Coding Plan, Google Antigravity, Command Code, Deploy. Each one's credentials are
 read from where its CLI already stores them; nothing is sent anywhere
 except the provider's own endpoint.
 
@@ -67,6 +67,7 @@ ANTIGRAVITY_TOKEN_URL = "https://oauth2.googleapis.com/token"
 ANTIGRAVITY_API_BASE = "https://daily-cloudcode-pa.googleapis.com/v1internal"
 ANTIGRAVITY_HUB_UA = "antigravity/hub/2.9.1/linux/amd64"
 COMMANDCODE_BASE = "https://api.commandcode.ai/alpha"
+DEPLOY_PORTAL_API = "https://ajax-portal.deploy.com/"
 
 
 def http_json(url, headers, timeout=REQUEST_TIMEOUT):
@@ -864,6 +865,90 @@ def collect_commandcode():
     return result
 
 
+# --- Deploy -----------------------------------------------------------------
+#
+# Deploy has no documented balance API and rejects API keys on this route, so
+# this uses the endpoint its portal calls, with a portal session cookie. It
+# reports a credit balance only: there is no cap, so there are no usage windows.
+
+def deploy_cookie():
+    cookie = os.environ.get("DEPLOY_PORTAL_COOKIE", "").strip()
+    if cookie:
+        return cookie
+    try:
+        with open(os.path.join(HOME, ".config/ai-limits/deploy-cookie")) as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def deploy_get(path, cookie):
+    status, data, _ = http_json(DEPLOY_PORTAL_API + path, {
+        "Cookie": cookie,
+        "Accept": "application/json",
+        "Origin": "https://portal.deploy.com",
+        "Referer": "https://portal.deploy.com/",
+        "User-Agent": USER_AGENT,
+    })
+    # The portal wraps responses as {status_code, message, data}.
+    if isinstance(data, dict) and "data" in data and "status_code" in data:
+        data = data["data"]
+    return status, data
+
+
+def deploy_failure(status):
+    if status == 0:
+        return {"state": "error", "detail": "Could not reach the Deploy portal"}
+    if status == 429:
+        return {"state": "rate_limited", "detail": "Deploy portal is rate-limiting"}
+    if status in (401, 403):
+        return {"state": "unauthenticated",
+                "detail": "Deploy session expired. Save a new portal cookie."}
+    return {"state": "error", "detail": f"Deploy portal returned HTTP {status}"}
+
+
+def deploy_organization(payload):
+    """The single organization on the account, or the one in $DEPLOY_ORG_ID."""
+    if isinstance(payload, dict):
+        orgs = payload.get("organizations") or payload.get("results") or [payload]
+    else:
+        orgs = payload
+    orgs = [o for o in orgs or [] if isinstance(o, dict) and o.get("id") is not None]
+    wanted = os.environ.get("DEPLOY_ORG_ID")
+    if wanted:
+        orgs = [o for o in orgs if str(o["id"]) == wanted]
+    return orgs[0] if len(orgs) == 1 else None
+
+
+def collect_deploy():
+    cookie = deploy_cookie()
+    if not cookie:
+        return {"state": "unauthenticated",
+                "detail": "No Deploy portal cookie. Save it in ~/.config/ai-limits/deploy-cookie"}
+
+    status, payload = deploy_get("api/organization", cookie)
+    if status != 200:
+        return deploy_failure(status)
+    org = deploy_organization(payload)
+    if org is None:
+        return {"state": "error",
+                "detail": "Could not pick one Deploy organization; set DEPLOY_ORG_ID"}
+
+    status, payload = deploy_get(f"api/organization/{org['id']}/balance", cookie)
+    if status != 200:
+        return deploy_failure(status)
+    info = payload.get("billing_info") if isinstance(payload, dict) else None
+    balance = info.get("balance") if isinstance(info, dict) else None
+    if isinstance(balance, str):
+        try:
+            balance = float(balance)
+        except ValueError:
+            balance = None
+    if not is_number(balance):
+        return {"state": "error", "detail": "Deploy portal response has no balance"}
+    return {"state": "ok", "detail": f"${balance:.2f} left", "windows": [], "balance": balance}
+
+
 # --- Assembly ---------------------------------------------------------------
 
 PROVIDERS = (
@@ -873,6 +958,7 @@ PROVIDERS = (
     ("zai", "Z.ai", collect_zai),
     ("antigravity", "Antigravity", collect_antigravity),
     ("commandcode", "Command Code", collect_commandcode),
+    ("deploy", "Deploy", collect_deploy),
 )
 
 
